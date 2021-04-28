@@ -1,0 +1,97 @@
+version: "3.6"
+services:
+  neocracy-db:
+    container_name: neocracy-db
+    image: mariadb:latest
+    restart: unless-stopped
+    volumes:
+      - ./db:/var/lib/mysql/
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    networks:
+      - neocracy
+
+  neocracy-front:
+    container_name: neocracy-front
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    image: neocracy-front
+    restart: unless-stopped
+    ports:
+      - 3000:3000
+    environment:
+      HOST: 0.0.0.0
+    depends_on:
+      - neocracy-db
+      - neocracy-backend
+    links:
+      - neocracy-backend
+    # volumes:
+    #   - ../frontend:/usr/src/app
+    networks:
+      - neocracy
+
+  # nginx:
+  #   image: nginx
+  #   container_name: neocracy-nginx
+  #   ports:
+  #     - "8080:80"
+  #   volumes:
+  #     - ./nginx:/etc/nginx/conf.d
+  #   depends_on:
+  #     - neocracy-front
+  #   links:
+  #     - neocracy-front
+  #   networks:
+  #     - neocracy
+  #     - web
+
+  neocracy-backend:
+    container_name: neocracy-backend
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    image: neocracy-backend
+    restart: unless-stopped
+    ports:
+      - 8000:8000
+    networks:
+      - neocracy
+
+  neocracy-myadmin:
+    container_name: neocracy-myadmin
+    image: phpmyadmin
+    restart: always
+    depends_on:
+      - neocracy-db
+    ports:
+      - 8081:80
+    environment:
+      PMA_HOST: neocracy-db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    networks:
+      - neocracy
+      - web
+
+  portainer:
+    container_name: portainer
+    image: portainer/portainer-ce:2.1.1
+    restart: unless-stopped
+    command: -H unix:///var/run/docker.sock
+    ports:
+      - 9000:9000
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./portainer:/data
+    networks:
+      - web
+
+networks:
+  neocracy:
+    name: neocracy
+  web:
+    name: web
